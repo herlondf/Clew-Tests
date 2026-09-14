@@ -1,38 +1,42 @@
 # Etiqueta as issues que o clew abre, a partir do que ele escreve no corpo.
 # O rastreador aplica uma lista fixa de labels; projeto, tipo e natureza do erro
-# saem do indice e da mensagem que ja estao no texto.
+# saem do índice e da mensagem. Rode à mão (numero) para refazer uma issue antiga.
 name: Rotular issue do clew
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
+    inputs:
+      numero:
+        description: Número da issue
+        required: true
 permissions:
   issues: write
 jobs:
   rotular:
-    if: contains(github.event.issue.body, 'Reportado pelo clew')
     runs-on: ubuntu-latest
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
-          TEXTO: ${{ github.event.issue.title }} ${{ github.event.issue.body }}
-          N: ${{ github.event.issue.number }}
+          N: ${{ github.event.issue.number || inputs.numero }}
         run: |
-          l=clew
-          t=$(printf '%s' "$TEXTO" | tr 'A-Z' 'a-z')
+          corpo=$(gh issue view "$N" -R "$GITHUB_REPOSITORY" --json title,body --jq '.title + "\n" + .body')
+          printf '%s' "$corpo" | grep -q 'Reportado pelo clew' || exit 0
+
+          # Só título, mensagem e origem. A análise da IA fala em "conexão" e
+          # "tente novamente" ao explicar, e rotular por ela troca a natureza do erro.
+          t=$(printf '%s\n' "$corpo" | awk 'NR==1 || /\*\*(Mensagem|Origem):\*\*/' | tr 'A-Z' 'a-z')
           m() { printf '%s' "$t" | grep -Eq "$1"; }
-          m '[_-]nfe[_-]'  && l=$l,nfe
-          m '[_-]nfce[_-]' && l=$l,nfce
-          m '[_-]nfse[_-]' && l=$l,nfse
-          m '[_-]brasil[_-]' && l=$l,brasil
-          m '[_-]mde[_-]'    && l=$l,mde
-          m '[_-]reinf[_-]'  && l=$l,reinf
-          m '[_-]engine[_-]' && l=$l,engine
-          m '[_-]auth[_-]'   && l=$l,auth
-          m 'nacional|sped.fazenda.gov.br/nfse|sefin' && m 'nfs' && l=$l,nfse-nacional
-          if m 'worker'; then l=$l,worker; else l=$l,api; fi
-          if m 'timeout|timed out|tempo esgotado|503|502|504|indispon|connection|conex|socket|refused|bloqueado temporariamente|tente novamente'; then
-            l=$l,instabilidade; else l=$l,bug; fi
-          m 'o que a ia leu' && l=$l,analisado-por-ia
-          c=$(printf '%s' "$TEXTO" | grep -Eo 'em [0-9]+ ocorr' | grep -Eo '[0-9]+' | head -1)
-          [ "${c:-0}" -ge 100 ] && l=$l,prioridade-alta
-          gh issue edit "$N" -R "$GITHUB_REPOSITORY" --add-label "$l"
+
+          l=clew
+          for p in nfe nfce nfse brasil mde reinf engine auth; do m "[_-]$p[_-]" && l="$l $p"; done
+          m '[_-]nfse[_-]' && m 'nacional|sped\.fazenda\.gov\.br/nfse|sefin' && l="$l nfse-nacional"
+          # O engine é worker (dataInicio e erro booleano), mesmo sem "worker" no nome.
+          if m 'worker|[_-]engine[_-]'; then l="$l worker"; else l="$l api"; fi
+          if m 'timeout|timed out|tempo esgotado|\b50[234]\b|indispon|connection|conex|socket|refused|bloqueado temporariamente|tente novamente|n.o foi obtido resposta'; then
+            l="$l instabilidade"; else l="$l bug"; fi
+          printf '%s' "$corpo" | grep -q 'O que a IA leu' && l="$l analisado-por-ia"
+
+          # Substitui, e não soma: refazer uma issue antiga tira o rótulo errado.
+          args=(); for x in $l; do args+=(-f "labels[]=$x"); done
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/issues/$N/labels" "${args[@]}" --jq '[.[].name] | join(",")'
