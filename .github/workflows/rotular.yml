@@ -23,6 +23,11 @@ jobs:
           m '[_-]nfe[_-]'  && l=$l,nfe
           m '[_-]nfce[_-]' && l=$l,nfce
           m '[_-]nfse[_-]' && l=$l,nfse
+          m '[_-]brasil[_-]' && l=$l,brasil
+          m '[_-]mde[_-]'    && l=$l,mde
+          m '[_-]reinf[_-]'  && l=$l,reinf
+          m '[_-]engine[_-]' && l=$l,engine
+          m '[_-]auth[_-]'   && l=$l,auth
           m 'nacional|sped.fazenda.gov.br/nfse|sefin' && m 'nfs' && l=$l,nfse-nacional
           if m 'worker'; then l=$l,worker; else l=$l,api; fi
           if m 'timeout|timed out|tempo esgotado|503|502|504|indispon|connection|conex|socket|refused|bloqueado temporariamente|tente novamente'; then
