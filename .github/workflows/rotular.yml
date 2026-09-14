@@ -1,0 +1,33 @@
+# Etiqueta as issues que o clew abre, a partir do que ele escreve no corpo.
+# O rastreador aplica uma lista fixa de labels; projeto, tipo e natureza do erro
+# saem do indice e da mensagem que ja estao no texto.
+name: Rotular issue do clew
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write
+jobs:
+  rotular:
+    if: contains(github.event.issue.body, 'Reportado pelo clew')
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TEXTO: ${{ github.event.issue.title }} ${{ github.event.issue.body }}
+          N: ${{ github.event.issue.number }}
+        run: |
+          l=clew
+          t=$(printf '%s' "$TEXTO" | tr 'A-Z' 'a-z')
+          m() { printf '%s' "$t" | grep -Eq "$1"; }
+          m '[_-]nfe[_-]'  && l=$l,nfe
+          m '[_-]nfce[_-]' && l=$l,nfce
+          m '[_-]nfse[_-]' && l=$l,nfse
+          m 'nacional|adn|sefin' && m 'nfs' && l=$l,nfse-nacional
+          if m 'worker'; then l=$l,worker; else l=$l,api; fi
+          if m 'timeout|timed out|tempo esgotado|503|502|504|indispon|connection|conex|socket|refused'; then
+            l=$l,instabilidade; else l=$l,bug; fi
+          m 'o que a ia leu' && l=$l,analisado-por-ia
+          c=$(printf '%s' "$TEXTO" | grep -Eo 'em [0-9]+ ocorr' | grep -Eo '[0-9]+' | head -1)
+          [ "${c:-0}" -ge 100 ] && l=$l,prioridade-alta
+          gh issue edit "$N" -R "$GITHUB_REPOSITORY" --add-label "$l"
