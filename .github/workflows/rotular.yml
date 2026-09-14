@@ -23,9 +23,9 @@ jobs:
           m '[_-]nfe[_-]'  && l=$l,nfe
           m '[_-]nfce[_-]' && l=$l,nfce
           m '[_-]nfse[_-]' && l=$l,nfse
-          m 'nacional|adn|sefin' && m 'nfs' && l=$l,nfse-nacional
+          m 'nacional|sped.fazenda.gov.br/nfse|sefin' && m 'nfs' && l=$l,nfse-nacional
           if m 'worker'; then l=$l,worker; else l=$l,api; fi
-          if m 'timeout|timed out|tempo esgotado|503|502|504|indispon|connection|conex|socket|refused'; then
+          if m 'timeout|timed out|tempo esgotado|503|502|504|indispon|connection|conex|socket|refused|bloqueado temporariamente|tente novamente'; then
             l=$l,instabilidade; else l=$l,bug; fi
           m 'o que a ia leu' && l=$l,analisado-por-ia
           c=$(printf '%s' "$TEXTO" | grep -Eo 'em [0-9]+ ocorr' | grep -Eo '[0-9]+' | head -1)
