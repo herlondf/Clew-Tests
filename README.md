@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/clew-claro.png">
-    <img src=".github/clew.png" alt="clew" width="160">
+    <img src=".github/clew.png" alt="clew" width="360">
   </picture>
 </p>
 
